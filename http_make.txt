@@ -1,0 +1,53 @@
+# ===============================
+#   Emscripten build Makefile
+# ===============================
+
+# Compiler and tools
+CC      = emcc
+AR      = emar
+RANLIB  = emranlib
+
+# Build output directory
+BUILD_DIR = build
+
+# Common settings
+CPPFLAGS = -I. -DHTTP_PARSER_STRICT=0
+CFLAGS   = -O3 -Wall -Wextra
+LDFLAGS  = -s STANDALONE_WASM -s EXIT_RUNTIME=1 -s ERROR_ON_UNDEFINED_SYMBOLS=0
+
+# Source files
+PARSER_SRC = http_parser.c http_parser.h
+URL_PARSER_SRC = contrib/url_parser.c
+PARSERTRACE_SRC = contrib/parsertrace.c
+
+# Outputs
+URL_PARSER_OUT = $(BUILD_DIR)/url_parser.wasm
+PARSERTRACE_OUT = $(BUILD_DIR)/parsertrace.wasm
+LIB_PARSER_OUT = $(BUILD_DIR)/libhttp_parser.a
+
+# Default target
+.PHONY: all clean
+all: $(URL_PARSER_OUT) $(PARSERTRACE_OUT) $(LIB_PARSER_OUT)
+
+# --- Library build ---
+$(LIB_PARSER_OUT): http_parser.o
+	mkdir -p $(BUILD_DIR)
+	$(AR) rcs $@ $^
+
+# --- Object file ---
+http_parser.o: http_parser.c http_parser.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c http_parser.c -o $@
+
+# --- Build url_parser.wasm ---
+$(URL_PARSER_OUT): $(PARSER_SRC) $(URL_PARSER_SRC)
+	mkdir -p $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(PARSER_SRC) $(URL_PARSER_SRC) -o $@
+
+# --- Build parsertrace.wasm ---
+$(PARSERTRACE_OUT): $(PARSER_SRC) $(PARSERTRACE_SRC)
+	mkdir -p $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(PARSER_SRC) $(PARSERTRACE_SRC) -o $@
+
+# --- Clean ---
+clean:
+	rm -rf $(BUILD_DIR) *.o
